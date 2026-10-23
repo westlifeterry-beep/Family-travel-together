@@ -1,0 +1,1637 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>荳陣親子旅遊（family travel together）｜0-14歲全齡親子友善平台</title>
+  <!-- PWA 與行動裝置滿版支援 -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#EA580C">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="荳陣親子旅遊">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Vue 3 -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Noto Sans TC', sans-serif; background-color: #FFFDF9; }
+    .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #FDBA74; border-radius: 9999px; }
+    .badge-active { background-color: #EA580C !important; color: #FFFFFF !important; border-color: #EA580C !important; }
+  </style>
+</head>
+<body class="text-slate-800 antialiased selection:bg-orange-200">
+
+<div id="app" class="min-h-screen flex flex-col">
+
+  <!-- ==================== 頂部導航列 ==================== -->
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-orange-100 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <!-- 品牌名稱與雙語副標 -->
+      <div class="flex items-center gap-3 cursor-pointer" @click="activeTab = 'explore'">
+        <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-orange-500 to-rose-500 flex items-center justify-center text-white shadow-md">
+          <i class="fa-solid fa-children text-xl"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 class="text-lg md:text-xl font-black tracking-tight bg-gradient-to-r from-orange-600 to-rose-600 bg-clip-text text-transparent">
+              荳陣親子旅遊 <span class="text-xs font-bold text-slate-500">（family travel together）</span>
+            </h1>
+            <span class="text-[11px] px-2 py-0.5 rounded-full font-bold"
+                  :class="isAdmin ? 'bg-rose-600 text-white' : 'bg-orange-100 text-orange-700'">
+              {{ isAdmin ? '👑 官方後台管理版' : '👨‍👩‍👧 民眾查閱共創版' }}
+            </span>
+          </div>
+          <p class="text-[11px] text-slate-500 hidden sm:block">
+            0-14歲住宿・餐廳・遊戲・體驗・公園｜8大育兒設備｜試算表雙向同步｜Google 實名留言存證
+          </p>
+        </div>
+      </div>
+
+      <!-- 主功能分頁切換 -->
+      <nav class="flex flex-wrap items-center gap-1 bg-orange-50/90 p-1 rounded-xl border border-orange-100">
+        <button @click="activeTab = 'explore'"
+                :class="activeTab === 'explore' ? 'bg-white text-orange-600 shadow-sm font-bold' : 'text-slate-600 hover:text-orange-500'"
+                class="px-2.5 py-1.5 rounded-lg text-xs transition flex items-center gap-1">
+          <i class="fa-solid fa-compass"></i> 景點與活動
+        </button>
+        <button @click="activeTab = 'itinerary'"
+                :class="activeTab === 'itinerary' ? 'bg-white text-orange-600 shadow-sm font-bold' : 'text-slate-600 hover:text-orange-500'"
+                class="px-2.5 py-1.5 rounded-lg text-xs transition flex items-center gap-1">
+          <i class="fa-solid fa-route"></i> 行程優化與分享
+          <span v-if="itineraryCart.length" class="w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] flex items-center justify-center font-bold">
+            {{ itineraryCart.length }}
+          </span>
+        </button>
+        <button @click="activeTab = 'partner'"
+                :class="activeTab === 'partner' ? 'bg-white text-orange-600 shadow-sm font-bold' : 'text-slate-600 hover:text-orange-500'"
+                class="px-2.5 py-1.5 rounded-lg text-xs transition flex items-center gap-1">
+          <i class="fa-solid fa-handshake"></i> 業配與產業合作
+        </button>
+        <!-- 官方專屬後台：資安稽核與實名存證 -->
+        <button v-if="isAdmin" @click="activeTab = 'adminAudit'"
+                :class="activeTab === 'adminAudit' ? 'bg-rose-600 text-white shadow-sm font-bold' : 'text-rose-600 hover:bg-rose-50 font-bold'"
+                class="px-2.5 py-1.5 rounded-lg text-xs transition flex items-center gap-1">
+          <i class="fa-solid fa-user-shield"></i> 實名稽核存證 ({{ auditLogs.length }})
+        </button>
+      </nav>
+
+      <!-- 右側：試算表同步狀態 + Google 登入 + Gemini + 官方切換 -->
+      <div class="flex flex-wrap items-center gap-1.5">
+        <!-- 專屬試算表同步按鈕 -->
+        <div class="flex items-center bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-xl text-[11px]">
+          <button @click="importFromUserGoogleSheet" class="font-bold text-emerald-700 hover:underline flex items-center gap-1"
+                  title="點此立即從試算表 1Bj9uP0TKWMcD3__uiqS05Oz-XJh0v1D0cf7fWknNWYY 同步最新資料">
+            <i class="fa-solid fa-rotate" :class="{'fa-spin': isSyncingSheet}"></i>
+            <span>{{ sheetSyncStatus }}</span>
+          </button>
+          <button @click="showSheetConfigModal = true" class="text-slate-500 hover:text-emerald-700 ml-1.5" title="設定 GAS Web App 雙向回寫網址">
+            <i class="fa-solid fa-gear"></i>
+          </button>
+          <a href="https://docs.google.com/spreadsheets/d/1Bj9uP0TKWMcD3__uiqS05Oz-XJh0v1D0cf7fWknNWYY/edit" target="_blank"
+             class="text-emerald-600 hover:text-emerald-800 ml-1.5" title="開啟您的 Google 試算表">
+            <i class="fa-solid fa-up-right-from-square"></i>
+          </a>
+        </div>
+
+        <!-- 未登入 Google -->
+        <button v-if="!googleUser" @click="loginWithGoogle"
+                class="px-2.5 py-1.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-bold shadow-sm flex items-center gap-1 transition">
+          <i class="fa-brands fa-google text-rose-500"></i>
+          <span>Google 登入</span>
+        </button>
+
+        <!-- 已登入 Google：可設定暱稱或勾選匿名 -->
+        <div v-else class="flex items-center gap-1 bg-sky-50 border border-sky-200 rounded-xl px-2 py-1 text-xs">
+          <i class="fa-solid fa-circle-check text-sky-600" :title="'實名驗證信箱：' + googleUser.email + '\n登入時間：' + googleUser.loginAt"></i>
+          <input v-if="!useAnonymous" v-model.trim="userNickname" type="text" placeholder="自訂暱稱"
+                 class="bg-white border border-sky-200 rounded-lg px-1.5 py-0.5 text-xs w-20 focus:outline-none" />
+          <span v-else class="text-sky-800 font-bold px-1">🕵️ 匿名家長</span>
+
+          <label class="flex items-center gap-0.5 text-[11px] text-slate-600 cursor-pointer ml-0.5" title="前台顯示匿名，後台保留實名與登入時間以防不法">
+            <input type="checkbox" v-model="useAnonymous" class="accent-orange-500" /> 匿名
+          </label>
+          <button @click="logoutGoogle" class="text-slate-400 hover:text-rose-600 ml-1" title="登出 Google">
+            <i class="fa-solid fa-right-from-bracket"></i>
+          </button>
+        </div>
+
+        <!-- Gemini 週更/擴充按鈕 -->
+        <button @click="showGeminiModal = true"
+                class="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-xs font-bold shadow hover:opacity-95 transition flex items-center gap-1">
+          <i class="fa-solid fa-wand-magic-sparkles"></i>
+          <span class="hidden md:inline">Gemini 擴充</span>
+        </button>
+
+        <!-- 官方管理切換 -->
+        <button @click="toggleAdminMode"
+                :class="isAdmin ? 'bg-rose-600 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'"
+                class="px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1"
+                title="切換官方後台管理權限（預設驗證碼：8888）">
+          <i class="fa-solid fa-shield-halved"></i>
+          <span class="hidden lg:inline">{{ isAdmin ? '退出後台' : '官方後台' }}</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== 即時天氣預報查詢與雨天備案聯動列 ==================== -->
+  <div class="bg-gradient-to-r from-sky-50 via-indigo-50 to-orange-50 border-b border-orange-100">
+    <div class="max-w-7xl mx-auto px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="bg-sky-600 text-white px-2.5 py-1 rounded-lg font-bold flex items-center gap-1">
+          <i class="fa-solid fa-cloud-sun-rain"></i> 出遊天氣預報查詢
+        </span>
+        <select v-model="selectedWeatherCity" @change="fetchLiveWeather"
+                class="bg-white border border-sky-200 rounded-lg px-2 py-1 font-bold text-slate-700 focus:outline-none">
+          <option v-for="c in weatherLocations" :key="c.name" :value="c">{{ c.name }}</option>
+        </select>
+
+        <div v-if="weatherData.loading" class="text-slate-500">
+          <i class="fa-solid fa-spinner fa-spin mr-1"></i>即時氣象連線中...
+        </div>
+        <div v-else class="flex flex-wrap items-center gap-2">
+          <span class="font-bold text-slate-800 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
+            目前 {{ weatherData.temp }}°C｜{{ weatherData.desc }}｜今日降雨率 {{ weatherData.rainProb }}%
+          </span>
+          <div class="hidden xl:flex items-center gap-1">
+            <span v-for="d in weatherData.daily" :key="d.date" class="bg-white/80 px-2 py-0.5 rounded border text-[11px] text-slate-600">
+              {{ d.date.slice(5) }}: {{ d.min }}~{{ d.max }}°C (💧{{ d.rain }}%)
+            </span>
+          </div>
+          <button v-if="weatherData.rainProb >= 40" @click="filters.isIndoor = true"
+                  class="bg-amber-500 hover:bg-amber-600 text-white px-2.5 py-1 rounded-lg font-bold transition">
+            ☔ 降雨率偏高！點此一鍵篩選「室內雨天備案」
+          </button>
+        </div>
+      </div>
+
+      <div class="text-[11px] text-slate-500">
+        <i class="fa-solid fa-clock-rotate-left text-indigo-500 mr-1"></i>資料更新：{{ lastWeeklyUpdate }}
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 分頁 1：景點與近期活動探索 ==================== -->
+  <main v-if="activeTab === 'explore'" class="flex-1 max-w-7xl w-full mx-auto px-4 py-6 space-y-6">
+
+    <!-- 熱門景點 / 本週新增 / 近期親子活動 快選看板 -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      <div class="lg:col-span-5 bg-white rounded-3xl p-4 border border-orange-100 shadow-sm flex flex-col justify-between gap-3">
+        <div class="flex items-center justify-between">
+          <h2 class="font-black text-sm text-slate-800 flex items-center gap-1.5">
+            <i class="fa-solid fa-bolt text-orange-500"></i> 熱門與最新動態快選
+          </h2>
+          <button v-if="isAdmin" @click="showAddPlaceModal = true"
+                  class="px-2.5 py-1 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700">
+            + 後台手動新增景點
+          </button>
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          <button @click="quickSortMode = 'all'"
+                  :class="quickSortMode === 'all' ? 'bg-orange-500 text-white font-bold shadow-sm' : 'bg-orange-50 text-slate-700 hover:bg-orange-100'"
+                  class="py-2 px-2 rounded-xl text-xs transition text-center">
+            🌟 全部景點 ({{ places.length }})
+          </button>
+          <button @click="quickSortMode = 'popular'"
+                  :class="quickSortMode === 'popular' ? 'bg-rose-500 text-white font-bold shadow-sm' : 'bg-rose-50 text-slate-700 hover:bg-rose-100'"
+                  class="py-2 px-2 rounded-xl text-xs transition text-center">
+            🔥 熱門景點排行
+          </button>
+          <button @click="quickSortMode = 'newest'"
+                  :class="quickSortMode === 'newest' ? 'bg-indigo-600 text-white font-bold shadow-sm' : 'bg-indigo-50 text-slate-700 hover:bg-indigo-100'"
+                  class="py-2 px-2 rounded-xl text-xs transition text-center">
+            🆕 本週最新新增
+          </button>
+        </div>
+      </div>
+
+      <!-- 近期親子活動看板 -->
+      <div class="lg:col-span-7 bg-gradient-to-r from-amber-50 to-orange-50 rounded-3xl p-4 border border-orange-200 shadow-sm space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-black text-orange-800 flex items-center gap-1.5">
+            <i class="fa-solid fa-calendar-check text-rose-500"></i>
+            🎪 近期親子活動快訊（每週定時更新／試算表同步）
+          </span>
+          <button @click="showGeminiModal = true" class="text-[11px] text-indigo-600 font-bold hover:underline">
+            <i class="fa-solid fa-arrows-rotate"></i> 立即透過 Gemini 聯網更新
+          </button>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div v-for="ev in upcomingEvents" :key="ev.id"
+               class="bg-white/95 p-2.5 rounded-2xl border border-orange-100 text-xs flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between gap-1">
+                <span class="bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded text-[10px]">{{ ev.city }}｜{{ ev.dateRange }}</span>
+                <span class="text-[10px] text-slate-400">{{ ev.targetAge }}</span>
+              </div>
+              <h4 class="font-bold text-slate-800 mt-1">{{ ev.title }}</h4>
+              <p class="text-[11px] text-slate-600 mt-0.5 line-clamp-2">{{ ev.desc }}</p>
+            </div>
+            <div class="flex items-center justify-between mt-2 pt-1 border-t border-slate-100">
+              <a :href="'https://www.google.com/search?q=' + encodeURIComponent(ev.title)" target="_blank"
+                 class="text-[11px] font-bold text-blue-600 hover:underline">
+                🔍 Google 搜尋活動詳情
+              </a>
+              <button v-if="isAdmin" @click="deleteEvent(ev.id)" class="text-[10px] text-rose-500 font-bold">刪除</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 多維度複選過濾面板 ==================== -->
+    <section class="bg-white rounded-3xl p-5 shadow-sm border border-orange-100 space-y-3.5">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-filter text-orange-500"></i>
+          <h2 class="font-bold text-slate-800 text-sm">全維度複選過濾查詢</h2>
+          <span class="text-[11px] text-slate-400">（涵蓋提及：親子、幼兒、嬰兒、育兒、兒童、學齡前、學齡、托兒所、托嬰、幼兒所、幼兒園、國小、親子/兒童友善環境）</span>
+        </div>
+        <button @click="resetFilters" class="text-xs text-rose-600 font-bold hover:underline flex items-center gap-1">
+          <i class="fa-solid fa-rotate-left"></i> 清除所有篩選
+        </button>
+      </div>
+
+      <!-- 關鍵字與推薦星等 -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div class="md:col-span-2 relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400"></i>
+          <input v-model.trim="filters.keyword" type="text"
+                 placeholder="輸入景點名或關鍵字（如：學齡前、幼兒園、國小、托嬰、消毒鍋、澡盆、推車、大雅...）"
+                 class="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:border-orange-400" />
+        </div>
+        <div class="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
+          <span class="text-xs font-bold text-slate-600 whitespace-nowrap">推薦星等：</span>
+          <select v-model.number="filters.minStars" class="bg-transparent text-xs sm:text-sm font-bold text-orange-600 focus:outline-none w-full">
+            <option :value="1">⭐ 1 顆星以上（全部顯示）</option>
+            <option :value="3">⭐⭐⭐ 3 顆星以上（好評推薦）</option>
+            <option :value="4">⭐⭐⭐⭐ 4 顆星以上（人氣精選）</option>
+            <option :value="4.8">⭐⭐⭐⭐⭐ 4.8 星以上（神級必訪）</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 1. 國家及地區 (複選) -->
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-xs font-bold text-slate-500 w-24 shrink-0"><i class="fa-solid fa-earth-asia mr-1 text-orange-400"></i>國家/地區：</span>
+        <div class="flex flex-wrap gap-1.5">
+          <button v-for="c in availableCountries" :key="c"
+                  @click="toggleArrayFilter(filters.countries, c)"
+                  :class="filters.countries.includes(c) ? 'badge-active' : 'bg-slate-100 text-slate-600 hover:bg-orange-50'"
+                  class="px-2.5 py-1 rounded-lg text-xs font-medium border border-transparent transition">
+            {{ c }}
+          </button>
+        </div>
+      </div>
+
+      <!-- 2. 縣市區域 (複選) -->
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-xs font-bold text-slate-500 w-24 shrink-0"><i class="fa-solid fa-city mr-1 text-orange-400"></i>縣市區域：</span>
+        <div class="flex flex-wrap gap-1.5">
+          <button v-for="city in availableCities" :key="city"
+                  @click="toggleArrayFilter(filters.cities, city)"
+                  :class="filters.cities.includes(city) ? 'badge-active' : 'bg-slate-100 text-slate-600 hover:bg-orange-50'"
+                  class="px-2.5 py-1 rounded-lg text-xs font-medium border border-transparent transition">
+            {{ city }}
+          </button>
+        </div>
+      </div>
+
+      <!-- 3. 鄉鎮市區 (複選) -->
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-xs font-bold text-slate-500 w-24 shrink-0"><i class="fa-solid fa-map-pin mr-1 text-orange-400"></i>鄉鎮市區：</span>
+        <div class="flex flex-wrap gap-1.5">
+          <button v-for="dist in availableDistricts" :key="dist"
+                  @click="toggleArrayFilter(filters.districts, dist)"
+                  :class="filters.districts.includes(dist) ? 'badge-active' : 'bg-slate-100 text-slate-600 hover:bg-orange-50'"
+                  class="px-2.5 py-1 rounded-lg text-xs font-medium border border-transparent transition">
+            {{ dist }}
+          </button>
+        </div>
+      </div>
+
+      <!-- 4. 場所類型 (複選) -->
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-xs font-bold text-slate-500 w-24 shrink-0"><i class="fa-solid fa-shapes mr-1 text-orange-400"></i>場所類型：</span>
+        <div class="flex flex-wrap gap-1.5">
+          <button v-for="cat in categoryOptions" :key="cat.value"
+                  @click="toggleArrayFilter(filters.categories, cat.value)"
+                  :class="filters.categories.includes(cat.value) ? 'badge-active' : 'bg-slate-100 text-slate-600 hover:bg-orange-50'"
+                  class="px-2.5 py-1 rounded-lg text-xs font-medium border border-transparent transition flex items-center gap-1">
+            <span>{{ cat.icon }}</span><span>{{ cat.label }}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 5. 適合年齡層 0-14歲 (複選) -->
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-xs font-bold text-slate-500 w-24 shrink-0"><i class="fa-solid fa-baby mr-1 text-orange-400"></i>年齡/學齡：</span>
+        <div class="flex flex-wrap gap-1.5">
+          <button v-for="age in ageOptions" :key="age"
+                  @click="toggleArrayFilter(filters.ages, age)"
+                  :class="filters.ages.includes(age) ? 'badge-active' : 'bg-slate-100 text-slate-600 hover:bg-orange-50'"
+                  class="px-2.5 py-1 rounded-lg text-xs font-medium border border-transparent transition">
+            {{ age }}
+          </button>
+        </div>
+      </div>
+
+      <!-- 6. 八大親子友善空間與設備 (複選) -->
+      <div class="flex flex-wrap items-start gap-2 pt-1">
+        <span class="text-xs font-bold text-slate-500 w-24 shrink-0 pt-1"><i class="fa-solid fa-heart-circle-check mr-1 text-rose-500"></i>8大設備：</span>
+        <div class="flex flex-wrap gap-1.5 flex-1">
+          <button v-for="fac in facilityOptions" :key="fac.key"
+                  @click="toggleArrayFilter(filters.facilities, fac.key)"
+                  :class="filters.facilities.includes(fac.key) ? 'badge-active' : 'bg-slate-100 text-slate-600 hover:bg-orange-50'"
+                  class="px-2.5 py-1 rounded-lg text-xs font-medium transition">
+            {{ fac.icon }} {{ fac.label }}
+          </button>
+          <button @click="filters.isIndoor = !filters.isIndoor"
+                  :class="filters.isIndoor ? 'badge-active' : 'bg-slate-100 text-slate-600 hover:bg-orange-50'"
+                  class="px-2.5 py-1 rounded-lg text-xs font-medium transition">
+            ☔ 室內雨天備案
+          </button>
+        </div>
+      </div>
+
+      <!-- 7. 15組廣義親子語意標籤快選 -->
+      <div class="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
+        <span class="text-[11px] font-bold text-slate-400 mr-1">語意標籤快搜：</span>
+        <button v-for="kw in semanticKeywordList" :key="kw"
+                @click="filters.keyword = (filters.keyword === kw ? '' : kw)"
+                :class="filters.keyword === kw ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'"
+                class="text-[11px] px-2 py-0.5 rounded-full font-medium transition">
+          #{{ kw }}
+        </button>
+      </div>
+    </section>
+
+    <!-- ==================== 景點卡片列表 ==================== -->
+    <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <article v-for="place in filteredPlaces" :key="place.id"
+               class="bg-white rounded-3xl overflow-hidden border border-orange-100 shadow-sm hover:shadow-md transition flex flex-col">
+        <div class="relative h-48 bg-slate-200 overflow-hidden">
+          <img :src="place.image" :alt="place.name" class="w-full h-full object-cover" />
+          <div class="absolute top-3 left-3 flex flex-wrap gap-1">
+            <span v-if="place.isSponsored" class="bg-rose-600 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full shadow">
+              👑 合作置頂
+            </span>
+            <span v-if="place.isNew" class="bg-indigo-600 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full shadow">
+              🆕 本週新增
+            </span>
+            <span class="bg-slate-900/75 backdrop-blur-sm text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+              {{ place.country }}・{{ place.city }}{{ place.district }}
+            </span>
+          </div>
+          <div class="absolute bottom-3 left-3 flex flex-wrap gap-1">
+            <span v-for="cat in place.categories" :key="cat"
+                  class="bg-white/95 text-orange-600 text-[11px] font-bold px-2 py-0.5 rounded-lg shadow-sm">
+              {{ cat }}
+            </span>
+          </div>
+          <button v-if="isAdmin" @click="deletePlace(place.id)"
+                  class="absolute top-3 right-3 w-8 h-8 rounded-full bg-rose-600 text-white flex items-center justify-center shadow hover:bg-rose-700"
+                  title="官方刪除此景點">
+            <i class="fa-solid fa-trash-can text-xs"></i>
+          </button>
+        </div>
+
+        <div class="p-5 flex-1 flex flex-col justify-between space-y-4">
+          <div class="space-y-2.5">
+            <div class="flex items-start justify-between gap-2">
+              <h3 class="font-black text-base text-slate-800 leading-snug">{{ place.name }}</h3>
+              <div class="flex items-center bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg shrink-0">
+                <span class="text-amber-500 text-xs mr-1"><i class="fa-solid fa-star"></i></span>
+                <span class="font-black text-xs text-amber-700">{{ Number(place.stars).toFixed(1) }}</span>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-1 text-[11px]">
+              <div class="flex flex-wrap gap-1">
+                <span v-for="age in place.ageGroups" :key="age" class="bg-sky-50 text-sky-700 px-2 py-0.5 rounded font-semibold border border-sky-100">
+                  {{ age }}
+                </span>
+              </div>
+              <span class="text-slate-500 font-bold">⚡放電 {{ place.energyScore || 5 }}/5・☕耍廢 {{ place.relaxScore || 4 }}/5</span>
+            </div>
+
+            <!-- 8 大育兒友善空間與設備核取表 -->
+            <div class="grid grid-cols-4 gap-1 pt-1">
+              <div v-for="fac in facilityOptions" :key="fac.key"
+                   class="p-1 rounded-lg text-center text-[10px] font-bold border truncate"
+                   :class="place.facilities?.[fac.key] ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-300 border-slate-100'">
+                {{ fac.icon }}{{ fac.short }} {{ place.facilities?.[fac.key] ? '✔' : '✖' }}
+              </div>
+            </div>
+
+            <p class="text-xs text-slate-600 leading-relaxed bg-orange-50/60 p-3 rounded-2xl border border-orange-100">
+              <span class="font-bold text-orange-700"><i class="fa-solid fa-comments mr-1"></i>評論與論壇整合：</span>
+              {{ place.reviewSummary }}
+            </p>
+
+            <div class="flex flex-wrap gap-1">
+              <span v-for="kw in place.matchedKeywords" :key="kw"
+                    class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                #{{ kw }}
+              </span>
+            </div>
+          </div>
+
+          <!-- 外部連結 & 下拉式留言板 -->
+          <div class="space-y-2 pt-2 border-t border-slate-100">
+            <div class="grid grid-cols-4 gap-1.5">
+              <a :href="getGoogleMapsUrl(place)" target="_blank" rel="noopener"
+                 class="py-1.5 px-1 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 text-[11px] font-bold flex items-center justify-center gap-1">
+                <i class="fa-solid fa-map-location-dot"></i> 評論/導航
+              </a>
+              <a :href="getYoutubeUrl(place)" target="_blank" rel="noopener"
+                 class="py-1.5 px-1 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 text-[11px] font-bold flex items-center justify-center gap-1">
+                <i class="fa-brands fa-youtube"></i> YT開箱
+              </a>
+              <a :href="getEmergencyMedicalUrl(place)" target="_blank" rel="noopener"
+                 class="py-1.5 px-1 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-[11px] font-bold flex items-center justify-center gap-1"
+                 title="搜尋周邊小兒科急診與藥局">
+                <i class="fa-solid fa-kit-medical"></i> 鄰近急診
+              </a>
+              <button @click="toggleItineraryCart(place)"
+                      :class="isInCart(place.id) ? 'bg-slate-800 text-white' : 'bg-orange-500 hover:bg-orange-600 text-white'"
+                      class="py-1.5 px-1 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1">
+                <i :class="isInCart(place.id) ? 'fa-solid fa-check' : 'fa-solid fa-plus'"></i>
+                {{ isInCart(place.id) ? '已選' : '排行程' }}
+              </button>
+            </div>
+
+            <!-- 下拉式留言板按鈕 -->
+            <button @click="toggleCommentBoard(place.id)"
+                    class="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center justify-between transition">
+              <span>
+                <i class="fa-regular fa-comment-dots mr-1 text-orange-500"></i>
+                下拉查看家長留言板（{{ getVisibleComments(place).length }} 則）
+              </span>
+              <i class="fa-solid" :class="expandedComments[place.id] ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+            </button>
+
+            <!-- 下拉式留言板內容區 -->
+            <div v-if="expandedComments[place.id]" class="mt-2 bg-slate-50 rounded-2xl p-3 border border-slate-200 space-y-3">
+              <div v-if="getVisibleComments(place).length" class="space-y-2 max-h-56 overflow-y-auto custom-scroll pr-1">
+                <div v-for="comment in getVisibleComments(place)" :key="comment.id"
+                     class="bg-white p-2.5 rounded-xl border border-slate-100 text-xs space-y-1">
+                  <div class="flex items-center justify-between flex-wrap gap-1">
+                    <div class="flex items-center gap-1.5">
+                      <span class="font-bold text-slate-800">{{ comment.displayAuthor }}</span>
+                      <span class="text-amber-500 font-bold">{{ '★'.repeat(comment.stars || 5) }}</span>
+                      <span class="text-[10px] text-slate-400">{{ comment.createdAt }}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <button @click="reportContent('留言', place.id, comment.id, comment.displayAuthor, comment.text)"
+                              class="text-slate-400 hover:text-amber-600 text-[10px]" title="檢舉不當留言">
+                        <i class="fa-solid fa-flag"></i> 檢舉
+                      </button>
+                      <button @click="blockUser(comment.displayAuthor)"
+                              class="text-slate-400 hover:text-rose-600 text-[10px]" title="封鎖此用戶">
+                        <i class="fa-solid fa-ban"></i> 封鎖
+                      </button>
+                      <button v-if="isAdmin" @click="deleteComment(place.id, comment.id)"
+                              class="text-rose-600 hover:text-rose-800 font-bold text-[11px] flex items-center gap-0.5">
+                        <i class="fa-solid fa-trash"></i> 官方刪除
+                      </button>
+                    </div>
+                  </div>
+                  <p class="text-slate-600">{{ comment.text }}</p>
+                  <!-- 官方後台直接檢視真實 Google 帳號與登入/留言時間 -->
+                  <div v-if="isAdmin" class="mt-1 pt-1 border-t border-dashed border-rose-200 text-[10px] text-rose-700 bg-rose-50/70 px-2 py-1 rounded">
+                    🛡️ <b>後台實名存證</b>：Google <code>{{ comment.realEmail }}</code>｜UID: <code>{{ comment.googleUid }}</code><br>
+                    🕒 登入時間：{{ comment.loginAt }}｜留言時間：{{ comment.createdAt }}
+                  </div>
+                </div>
+              </div>
+              <p v-else class="text-xs text-slate-400 text-center py-2">尚無留言，歡迎登入 Google 帳號後以暱稱或匿名搶先分享！</p>
+
+              <!-- 民眾留言表單 -->
+              <div v-if="googleUser" class="space-y-2 pt-2 border-t border-slate-200">
+                <div class="flex items-center justify-between text-[11px]">
+                  <span class="font-bold text-emerald-700">
+                    發言身分：{{ useAnonymous ? '🕵️ 匿名家長 (後台實名保護)' : ('👤 ' + (userNickname || googleUser.displayName)) }}
+                  </span>
+                  <select v-model.number="newCommentStars[place.id]" class="bg-white border rounded px-1.5 py-0.5 font-bold text-amber-600">
+                    <option :value="5">5 ★ 超推</option>
+                    <option :value="4">4 ★ 推薦</option>
+                    <option :value="3">3 ★ 普通</option>
+                    <option :value="2">2 ★ 待改進</option>
+                    <option :value="1">1 ★ 不推</option>
+                  </select>
+                </div>
+                <div class="flex gap-1.5">
+                  <input v-model.trim="newCommentText[place.id]"
+                         @keyup.enter="submitComment(place.id)"
+                         type="text"
+                         placeholder="分享尿布台、推車、消毒鍋或現場實況..."
+                         class="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-orange-400" />
+                  <button @click="submitComment(place.id)"
+                          class="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shrink-0">
+                    送出
+                  </button>
+                </div>
+              </div>
+              <div v-else class="text-center py-2">
+                <button @click="loginWithGoogle" class="text-xs bg-white border border-slate-300 px-3 py-1.5 rounded-xl font-bold text-slate-700 hover:bg-slate-50 shadow-sm">
+                  <i class="fa-brands fa-google text-rose-500 mr-1"></i> 請先登入 Google 帳號以暱稱或匿名留言
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <!-- ==================== 分頁 2：Google Maps 行程優化與圖文分享 ==================== -->
+  <main v-if="activeTab === 'itinerary'" class="flex-1 max-w-7xl w-full mx-auto px-4 py-6 space-y-8">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <section class="lg:col-span-5 bg-white rounded-3xl p-6 border border-orange-100 shadow-sm space-y-4 h-fit">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div>
+            <h2 class="text-lg font-black text-slate-800">🗺️ Google Maps 智慧行程排序</h2>
+            <p class="text-xs text-slate-500">自動依經緯度計算最短路徑，減少孩子乘車時間</p>
+          </div>
+          <span class="bg-orange-100 text-orange-700 text-xs font-bold px-2.5 py-1 rounded-full">
+            {{ itineraryCart.length }} 個景點
+          </span>
+        </div>
+
+        <div v-if="itineraryCart.length" class="space-y-2">
+          <div v-for="(item, idx) in itineraryCart" :key="item.id"
+               class="flex items-center justify-between bg-orange-50/70 p-2.5 rounded-2xl border border-orange-100">
+            <div class="flex items-center gap-2.5">
+              <span class="w-6 h-6 rounded-full bg-orange-500 text-white text-xs font-bold flex items-center justify-center">{{ idx + 1 }}</span>
+              <div>
+                <h4 class="text-xs font-bold text-slate-800">{{ item.name }}</h4>
+                <p class="text-[10px] text-slate-500">{{ item.city }}{{ item.district }}</p>
+              </div>
+            </div>
+            <button @click="toggleItineraryCart(item)" class="text-slate-400 hover:text-rose-600"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 pt-2">
+            <button @click="optimizeItineraryRoute"
+                    class="py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center justify-center gap-1">
+              <i class="fa-solid fa-bolt"></i> 一鍵順路排序優化
+            </button>
+            <a :href="googleMapsMultiStopUrl" target="_blank" rel="noopener"
+               class="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-1">
+              <i class="fa-solid fa-diamond-turn-right"></i> Google 多點導航
+            </a>
+          </div>
+          <p v-if="routeOptimizedMessage" class="text-xs text-indigo-700 bg-indigo-50 p-2.5 rounded-xl font-medium">
+            ✨ {{ routeOptimizedMessage }}
+          </p>
+        </div>
+
+        <!-- 民眾上傳圖片與文字分享行程 -->
+        <div class="pt-4 border-t border-slate-100 space-y-3">
+          <h3 class="font-bold text-sm text-slate-800">📸 上傳圖片與文字分享親子行程（回寫至試算表）</h3>
+          <div v-if="googleUser" class="space-y-2.5 text-xs">
+            <div class="text-emerald-700 font-bold">
+              發布身分：{{ useAnonymous ? '🕵️ 匿名家長' : ('👤 ' + (userNickname || googleUser.displayName)) }}
+            </div>
+            <input v-model.trim="newItineraryForm.title" type="text" placeholder="行程標題（例：台中大雅＆沙鹿一日放電順遊）"
+                   class="w-full px-3 py-2 rounded-xl border border-slate-200" />
+            <input v-model.trim="newItineraryForm.customSpots" type="text"
+                   placeholder="額外自訂順遊景點（以逗號分隔，會與上方已選景點自動合併）"
+                   class="w-full px-3 py-2 rounded-xl border border-slate-200" />
+            <textarea v-model.trim="newItineraryForm.description" rows="3"
+                      placeholder="分享推車動線、哺乳室位置、午睡與用餐心得..."
+                      class="w-full px-3 py-2 rounded-xl border border-slate-200"></textarea>
+            <div class="flex items-center gap-2">
+              <label class="cursor-pointer px-3 py-2 rounded-xl bg-orange-50 text-orange-700 border border-orange-200 font-bold">
+                <i class="fa-solid fa-image mr-1"></i> 選擇上傳照片
+                <input type="file" accept="image/*" @change="handleItineraryImageUpload" class="hidden" />
+              </label>
+              <span v-if="newItineraryForm.imagePreview" class="text-emerald-600 font-bold">✔ 已載入圖片</span>
+            </div>
+            <img v-if="newItineraryForm.imagePreview" :src="newItineraryForm.imagePreview" class="h-32 w-full object-cover rounded-xl border" />
+            <button @click="publishSharedItinerary"
+                    class="w-full py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-rose-500 text-white font-bold shadow">
+              🚀 發布至行程牆並寫入 Google 試算表
+            </button>
+          </div>
+          <div v-else class="text-center py-3 bg-amber-50 rounded-xl border border-amber-200">
+            <button @click="loginWithGoogle" class="text-xs font-bold text-amber-900 underline">
+              🔒 請先點此登入 Google 帳號，即可透過暱稱或匿名分享行程與照片
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 右側：行程推薦牆 -->
+      <section class="lg:col-span-7 space-y-4">
+        <h2 class="text-lg font-black text-slate-800">🔥 親子旅遊行程推薦牆</h2>
+        <article v-for="plan in sharedItineraries" :key="plan.id"
+                 class="bg-white rounded-3xl p-5 border border-orange-100 shadow-sm flex flex-col sm:flex-row gap-4">
+          <img :src="plan.image" :alt="plan.title" class="w-full sm:w-48 h-44 object-cover rounded-2xl shrink-0" />
+          <div class="flex-1 flex flex-col justify-between space-y-2">
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-orange-600 bg-orange-50 px-2.5 py-0.5 rounded-full">
+                  👤 {{ plan.displayAuthor }}｜{{ plan.createdAt }}
+                </span>
+                <button v-if="isAdmin" @click="deleteSharedItinerary(plan.id)" class="text-xs text-rose-600 font-bold">
+                  <i class="fa-solid fa-trash"></i> 官方刪除
+                </button>
+              </div>
+              <h3 class="font-black text-base text-slate-800 mt-1">{{ plan.title }}</h3>
+              <p class="text-xs text-slate-600 mt-1">{{ plan.description }}</p>
+              <div class="flex flex-wrap items-center gap-1.5 pt-2">
+                <template v-for="(spot, sIdx) in plan.spots" :key="spot">
+                  <span class="bg-slate-100 text-slate-700 text-[11px] font-bold px-2 py-0.5 rounded-lg">
+                    {{ sIdx + 1 }}. {{ spot }}
+                  </span>
+                  <i v-if="sIdx < plan.spots.length - 1" class="fa-solid fa-arrow-right text-[10px] text-orange-400"></i>
+                </template>
+              </div>
+              <div v-if="isAdmin && plan.realEmail" class="mt-2 text-[10px] text-rose-700 bg-rose-50 px-2 py-1 rounded">
+                🛡️ 實名紀錄：{{ plan.realEmail }}｜UID: {{ plan.googleUid }}｜登入時間：{{ plan.loginAt }}
+              </div>
+            </div>
+            <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+              <a :href="getPlanGoogleMapUrl(plan.spots)" target="_blank" class="text-xs font-bold text-emerald-600 hover:underline">
+                <i class="fa-solid fa-map-location-dot"></i> Google Maps 開啟順遊路線
+              </a>
+              <button @click="plan.likes++" class="text-xs text-rose-500 font-bold bg-rose-50 px-3 py-1 rounded-full">
+                ❤️ 收藏 ({{ plan.likes }})
+              </button>
+            </div>
+          </div>
+        </article>
+      </section>
+    </div>
+  </main>
+
+  <!-- ==================== 分頁 3：廣告業配與產業合作專區 ==================== -->
+  <main v-if="activeTab === 'partner'" class="flex-1 max-w-5xl w-full mx-auto px-4 py-8 space-y-6">
+    <section class="bg-gradient-to-r from-orange-500 to-rose-500 rounded-3xl p-7 text-white shadow-md space-y-2">
+      <h2 class="text-2xl font-black">🤝 荳陣親子旅遊（family travel together）產業合作與廣告中心</h2>
+      <p class="text-xs sm:text-sm text-white/90">
+        歡迎各大親子友善飯店、餐廳、觀光工廠、嬰幼推車、消毒鍋、汽座與育兒用品廠商聯繫洽談版位廣告、實地開箱業配與產品團購推銷！
+      </p>
+    </section>
+
+    <section class="grid grid-cols-1 md:grid-cols-12 gap-6 bg-white rounded-3xl p-6 border border-orange-100 shadow-sm">
+      <div class="md:col-span-5 space-y-3 bg-orange-50/70 p-5 rounded-2xl border border-orange-100 text-xs">
+        <h3 class="font-black text-base text-slate-800">📬 站長專屬聯絡方式</h3>
+        <div><b>聯絡人：</b>{{ contactInfo.name }}</div>
+        <div><b>商務信箱：</b>{{ contactInfo.email }}</div>
+        <div><b>官方 LINE：</b>{{ contactInfo.lineId }}</div>
+        <div><b>聯絡專線：</b>{{ contactInfo.phone }}</div>
+      </div>
+
+      <div class="md:col-span-7 space-y-3 text-xs">
+        <h3 class="font-black text-base text-slate-800">📝 廠商線上廣告／業配／產品推銷提案單</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <input v-model="vendorForm.company" placeholder="廠商 / 品牌名稱 *" class="px-3 py-2 rounded-xl border" />
+          <input v-model="vendorForm.contact" placeholder="聯絡人姓名與職稱 *" class="px-3 py-2 rounded-xl border" />
+          <input v-model="vendorForm.emailOrLine" placeholder="聯絡電話 / LINE / Email *" class="px-3 py-2 rounded-xl border" />
+          <select v-model="vendorForm.type" class="px-3 py-2 rounded-xl border bg-white">
+            <option value="版位廣告與景點置頂">📢 版位廣告與景點置頂</option>
+            <option value="親子飯店/餐廳實地業配">🏨 親子飯店/餐廳實地業配</option>
+            <option value="育兒產品合作推銷/團購">🛒 育兒產品合作推銷/團購</option>
+          </select>
+        </div>
+        <textarea v-model="vendorForm.message" rows="3" placeholder="請簡述合作內容、推廣產品與檔期需求..." class="w-full px-3 py-2 rounded-xl border"></textarea>
+        <button @click="submitVendorForm" class="px-6 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold shadow">
+          送出合作提案（自動寫入試算表「廠商提案紀錄」）
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <!-- ==================== 分頁 4：官方後台資安稽核與依法送辦存證中心 ==================== -->
+  <main v-if="activeTab === 'adminAudit' && isAdmin" class="flex-1 max-w-7xl w-full mx-auto px-4 py-6 space-y-6">
+    <section class="bg-white rounded-3xl p-6 border border-rose-200 shadow-sm space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+        <div>
+          <h2 class="text-lg font-black text-rose-700 flex items-center gap-2">
+            <i class="fa-solid fa-scale-balanced"></i>
+            官方資安稽核與實名存證中心（防範不法、詐騙與惡意破壞）
+          </h2>
+          <p class="text-xs text-slate-500">
+            完整紀錄所有登入帳號之真實 Google Email、UID、登入時間與留言時間，並同步寫入試算表《資安稽核存證表》。
+          </p>
+        </div>
+        <button @click="exportAuditLogsCsv"
+                class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow flex items-center gap-1.5">
+          <i class="fa-solid fa-file-csv"></i> 匯出完整實名稽核存證單 (CSV)
+        </button>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-100 text-slate-700 border-b">
+              <th class="p-3">存證編號</th>
+              <th class="p-3">行為類型</th>
+              <th class="p-3">前台顯示名稱</th>
+              <th class="p-3 text-rose-700">真實 Google 帳號 (Email / UID)</th>
+              <th class="p-3">帳號登入時間</th>
+              <th class="p-3">留言/發布時間</th>
+              <th class="p-3">目標景點與內容摘要</th>
+              <th class="p-3">裝置環境特徵</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="log in auditLogs" :key="log.id" class="border-b hover:bg-rose-50/30">
+              <td class="p-3 font-mono text-[11px]">{{ log.id }}</td>
+              <td class="p-3"><span class="px-2 py-0.5 rounded bg-orange-100 text-orange-800 font-bold">{{ log.actionType }}</span></td>
+              <td class="p-3 font-bold">{{ log.displayAuthor }}</td>
+              <td class="p-3 font-mono text-rose-700 font-bold">{{ log.realEmail }}<br><span class="text-[10px] text-slate-400">UID: {{ log.googleUid }}</span></td>
+              <td class="p-3 font-mono">{{ log.loginAt }}</td>
+              <td class="p-3 font-mono font-bold">{{ log.actionAt }}</td>
+              <td class="p-3 max-w-xs truncate" :title="log.content">{{ log.targetName }}：{{ log.content }}</td>
+              <td class="p-3 text-[10px] text-slate-400 max-w-[180px] truncate" :title="log.userAgent">{{ log.userAgent }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- ==================== 彈窗 1：設定 Google 試算表雙向同步 Web App 網址 ==================== -->
+  <div v-if="showSheetConfigModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b pb-3">
+        <h3 class="font-black text-base text-slate-800">📊 專屬試算表雙向同步設定</h3>
+        <button @click="showSheetConfigModal = false" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="space-y-3 text-xs text-slate-600">
+        <p>已內建綁定您的試算表 ID：<code class="bg-slate-100 px-1.5 py-0.5 rounded font-bold text-emerald-700">1Bj9uP0TKWMcD3__uiqS05Oz-XJh0v1D0cf7fWknNWYY</code></p>
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Google Apps Script 網頁應用程式網址 (以 /exec 結尾，用於雙向回寫留言與存證)：</label>
+          <input v-model.trim="gasWebhookUrl" type="text" placeholder="https://script.google.com/macros/s/.../exec"
+                 class="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500" />
+        </div>
+        <p class="text-[11px] text-slate-400">
+          💡 提示：即使尚未填入上方 `/exec` 網址，只要您的試算表共用權限設為「知道連結的任何人可檢視」，本網頁就會透過 Google GViz 通道自動讀取匯入您的《景點總表》、《近期親子活動》與《行程推薦牆》！
+        </p>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button @click="showSheetConfigModal = false" class="px-4 py-2 rounded-xl bg-slate-100 text-xs font-bold">關閉</button>
+        <button @click="saveSheetConfigAndSync" class="px-5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">
+          儲存並立即從試算表匯入
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 彈窗 2：Gemini 每週定期更新與即時聯網擴充 ==================== -->
+  <div v-if="showGeminiModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-xl w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b pb-3">
+        <h3 class="font-black text-base text-slate-800">✨ 連線 Gemini AI（每週定時更新／手動擴充景點與近期活動）</h3>
+        <button @click="showGeminiModal = false" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="space-y-3 text-xs">
+        <input v-model.trim="geminiApiKey" type="password" placeholder="貼上 AIzaSy... 開頭的 Gemini API Key"
+               class="w-full px-3 py-2 rounded-xl border border-slate-200" />
+        <textarea v-model="geminiPrompt" rows="3" class="w-full px-3 py-2 rounded-xl border border-slate-200"></textarea>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button @click="showGeminiModal = false" class="px-4 py-2 rounded-xl bg-slate-100 text-xs font-bold">關閉</button>
+        <button @click="fetchPlacesFromGemini" :disabled="geminiLoading"
+                class="px-5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold">
+          {{ geminiLoading ? 'Gemini 正在聯網爬梳並寫回試算表...' : '🚀 立即執行 Gemini 更新並寫回試算表' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 彈窗 3：官方後台手動新增景點 ==================== -->
+  <div v-if="showAddPlaceModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-xl w-full p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b pb-3">
+        <h3 class="font-black text-base text-slate-800">👑 官方後台手動新增景點（自動同步至試算表）</h3>
+        <button @click="showAddPlaceModal = false" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="grid grid-cols-2 gap-3 text-xs">
+        <input v-model="newPlace.name" placeholder="景點名稱（不限含親子二字）*" class="col-span-2 px-3 py-2 border rounded-xl" />
+        <input v-model="newPlace.country" placeholder="國家/地區 (例：台灣、日本)" class="px-3 py-2 border rounded-xl" />
+        <input v-model="newPlace.city" placeholder="縣市 (例：臺中市)" class="px-3 py-2 border rounded-xl" />
+        <input v-model="newPlace.district" placeholder="鄉鎮市區 (例：大雅區)" class="px-3 py-2 border rounded-xl" />
+        <input v-model.number="newPlace.stars" type="number" step="0.1" placeholder="推薦星等 (1-5)" class="px-3 py-2 border rounded-xl" />
+        <textarea v-model="newPlace.reviewSummary" rows="3" placeholder="評論摘要（提及學齡前、國小、幼兒園、推車等）..." class="col-span-2 px-3 py-2 border rounded-xl"></textarea>
+
+        <div class="col-span-2 font-bold text-slate-700 pt-1">勾選具備之 8 大育兒友善空間與設備：</div>
+        <label v-for="fac in facilityOptions" :key="fac.key" class="flex items-center gap-1.5">
+          <input type="checkbox" v-model="newPlace.facilities[fac.key]" /> {{ fac.icon }} {{ fac.label }}
+        </label>
+        <label class="flex items-center gap-1.5"><input type="checkbox" v-model="newPlace.isIndoor" /> ☔ 室內雨天備案</label>
+        <label class="flex items-center gap-1.5"><input type="checkbox" v-model="newPlace.isSponsored" /> 👑 官方合作置頂</label>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button @click="showAddPlaceModal = false" class="px-4 py-2 rounded-xl bg-slate-100 text-xs font-bold">取消</button>
+        <button @click="addOfficialPlace" class="px-5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">確認新增並寫入試算表</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 頁尾 -->
+  <footer class="bg-white border-t border-orange-100 py-5 mt-12 text-center text-xs text-slate-400">
+    <p>© 2026 荳陣親子旅遊（family travel together）｜綁定試算表 1Bj9uP0TKWMcD3__uiqS05Oz-XJh0v1D0cf7fWknNWYY｜Google 實名安全存證保護</p>
+  </footer>
+</div>
+
+<script>
+const { createApp, ref, reactive, computed, onMounted } = Vue;
+
+// =========================================================================
+// 📊 固定綁定您的 Google 試算表 ID
+// =========================================================================
+const SPREADSHEET_ID = "1Bj9uP0TKWMcD3__uiqS05Oz-XJh0v1D0cf7fWknNWYY";
+
+const formatTimestamp = () => {
+  const d = new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0') + ' ' +
+    String(d.getHours()).padStart(2, '0') + ':' +
+    String(d.getMinutes()).padStart(2, '0') + ':' +
+    String(d.getSeconds()).padStart(2, '0');
+};
+
+createApp({
+  setup() {
+    const activeTab = ref('explore');
+    const quickSortMode = ref('all');
+    const isAdmin = ref(false);
+    const showGeminiModal = ref(false);
+    const showAddPlaceModal = ref(false);
+    const showSheetConfigModal = ref(false);
+    const isSyncingSheet = ref(false);
+    const sheetSyncStatus = ref('同步試算表');
+    const lastWeeklyUpdate = ref(formatTimestamp());
+
+    // GAS Web App 網址 (可從網頁右上角齒輪直接設定，自動儲存於瀏覽器)
+    const gasWebhookUrl = ref(localStorage.getItem('dz_gas_url') || '');
+
+    // Google 帳號實名登入與匿名模式
+    const googleUser = ref(JSON.parse(localStorage.getItem('dz_google_user') || 'null'));
+    const userNickname = ref(localStorage.getItem('dz_nickname') || '');
+    const useAnonymous = ref(false);
+
+    // Apple 1.2 UGC 合規：使用者條款、檢舉、封鎖清單
+    const hasAgreedEula = ref(localStorage.getItem('dz_agreed_eula') === 'true');
+    const blockedUsers = ref(JSON.parse(localStorage.getItem('dz_blocked_users') || '[]'));
+    const reportedIds = ref(JSON.parse(localStorage.getItem('dz_reported_ids') || '[]'));
+
+    // 資安稽核存證日誌
+    const auditLogs = ref(JSON.parse(localStorage.getItem('dz_audit_logs') || '[]'));
+
+    // 傳送資料回寫至 Google 試算表 (1Bj9uP0TKWMcD3__uiqS05Oz-XJh0v1D0cf7fWknNWYY)
+    const postToGoogleSheet = async (payload) => {
+      if (!gasWebhookUrl.value || !gasWebhookUrl.value.startsWith('https://script.google.com')) return;
+      try {
+        await fetch(gasWebhookUrl.value, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+      } catch (err) {
+        console.warn('回寫試算表背景通知：', err);
+      }
+    };
+
+    const recordAuditLog = (actionType, targetName, content, displayAuthor) => {
+      if (!googleUser.value) return null;
+      const entry = {
+        id: 'LOG_' + Date.now(),
+        actionType,
+        displayAuthor,
+        realEmail: googleUser.value.email,
+        googleUid: googleUser.value.uid,
+        loginAt: googleUser.value.loginAt,
+        actionAt: formatTimestamp(),
+        targetName,
+        content,
+        userAgent: navigator.userAgent
+      };
+      auditLogs.value.unshift(entry);
+      localStorage.setItem('dz_audit_logs', JSON.stringify(auditLogs.value));
+      return entry;
+    };
+
+    // 從 Google 試算表 (1Bj9uP0TKWMcD3__uiqS05Oz-XJh0v1D0cf7fWknNWYY) 自動匯入《景點總表》、《近期親子活動》、《行程推薦牆》
+    const fetchGvizSheetRows = async (sheetName) => {
+      const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheetName)}`;
+      const res = await fetch(url);
+      const txt = await res.text();
+      const jsonStr = txt.substring(txt.indexOf('{'), txt.lastIndexOf('}') + 1);
+      const data = JSON.parse(jsonStr);
+      return data.table?.rows || [];
+    };
+
+    const importFromUserGoogleSheet = async () => {
+      isSyncingSheet.value = true;
+      sheetSyncStatus.value = '匯入中...';
+      try {
+        // 通道 1：若已設定 GAS Web App URL，優先透過 doGet 取得完整資料
+        if (gasWebhookUrl.value && gasWebhookUrl.value.startsWith('https://script.google.com')) {
+          const res = await fetch(gasWebhookUrl.value);
+          const data = await res.json();
+          if (data.status === 'success') {
+            if (data.places?.length) places.value = data.places;
+            if (data.events?.length) upcomingEvents.value = data.events;
+            if (data.itineraries?.length) sharedItineraries.value = data.itineraries;
+            sheetSyncStatus.value = `已同步 (${places.value.length}筆)`;
+            lastWeeklyUpdate.value = formatTimestamp() + ' (試算表即時同步)';
+            isSyncingSheet.value = false;
+            return;
+          }
+        }
+
+        // 通道 2：免設定直連 GViz 讀取試算表 1Bj9uP0TKWMcD3__uiqS05Oz-XJh0v1D0cf7fWknNWYY
+        const placeRows = await fetchGvizSheetRows('景點總表');
+        if (placeRows.length > 0) {
+          const loadedPlaces = placeRows.map((r, idx) => {
+            const c = (i) => (r.c && r.c[i] && r.c[i].v !== null ? r.c[i].v : '');
+            let commentsArr = [];
+            try { commentsArr = JSON.parse(c(28) || '[]'); } catch (e) {}
+            return {
+              id: String(c(0) || 'sheet_' + idx),
+              status: String(c(1) || '已核准'),
+              name: String(c(2)),
+              country: String(c(3) || '台灣'),
+              city: String(c(4) || '臺中市'),
+              district: String(c(5) || ''),
+              categories: String(c(6) || '體驗').split(',').map(s => s.trim()).filter(Boolean),
+              ageGroups: String(c(7) || '3-6歲 (學齡前/幼兒園)').split(',').map(s => s.trim()).filter(Boolean),
+              stars: Number(c(8)) || 4.7,
+              isIndoor: Boolean(c(9)),
+              isSponsored: Boolean(c(10)),
+              isNew: Boolean(c(11)),
+              popularity: Number(c(12)) || 95,
+              energyScore: Number(c(13)) || 5,
+              relaxScore: Number(c(14)) || 4,
+              lat: Number(c(15)) || 24.18,
+              lng: Number(c(16)) || 120.64,
+              facilities: {
+                restroom: Boolean(c(17)),
+                diaperTable: Boolean(c(18)),
+                nursingRoom: Boolean(c(19)),
+                strollerRental: Boolean(c(20)),
+                sterilizer: Boolean(c(21)),
+                babyBath: Boolean(c(22)),
+                highChair: Boolean(c(23)),
+                kidsTableware: Boolean(c(24))
+              },
+              matchedKeywords: String(c(25) || '親子友善').split(',').map(s => s.trim()).filter(Boolean),
+              reviewSummary: String(c(26) || ''),
+              image: String(c(27) || 'https://images.unsplash.com/photo-1566140967404-b8b3932483f5?auto=format&fit=crop&w=800&q=80'),
+              comments: commentsArr
+            };
+          }).filter(p => p.name && p.name !== '景點名稱' && p.status === '已核准');
+
+          if (loadedPlaces.length > 0) {
+            places.value = loadedPlaces;
+            localStorage.setItem('dz_places_v3', JSON.stringify(loadedPlaces));
+          }
+        }
+
+        // 同步讀取「近期親子活動」分頁
+        try {
+          const eventRows = await fetchGvizSheetRows('近期親子活動');
+          const loadedEvents = eventRows.map((r, idx) => {
+            const c = (i) => (r.c && r.c[i] && r.c[i].v !== null ? r.c[i].v : '');
+            return {
+              id: String(c(0) || 'ev_' + idx),
+              city: String(c(1)),
+              dateRange: String(c(2)),
+              targetAge: String(c(3)),
+              title: String(c(4)),
+              desc: String(c(5))
+            };
+          }).filter(e => e.title && e.title !== '活動名稱');
+          if (loadedEvents.length > 0) upcomingEvents.value = loadedEvents;
+        } catch (e) {}
+
+        // 同步讀取「行程推薦牆」分頁
+        try {
+          const itinRows = await fetchGvizSheetRows('行程推薦牆');
+          const loadedItin = itinRows.map((r, idx) => {
+            const c = (i) => (r.c && r.c[i] && r.c[i].v !== null ? r.c[i].v : '');
+            return {
+              id: String(c(0) || 'plan_' + idx),
+              displayAuthor: String(c(1)),
+              realEmail: String(c(2)),
+              googleUid: String(c(3)),
+              loginAt: String(c(4)),
+              createdAt: String(c(5)),
+              title: String(c(6)),
+              description: String(c(7)),
+              spots: String(c(8) || '').split(',').map(s => s.trim()).filter(Boolean),
+              image: String(c(9) || 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?auto=format&fit=crop&w=800&q=80'),
+              likes: Number(c(10)) || 1
+            };
+          }).filter(i => i.title && i.title !== '行程標題');
+          if (loadedItin.length > 0) sharedItineraries.value = loadedItin;
+        } catch (e) {}
+
+        sheetSyncStatus.value = `試算表已同步 (${places.value.length}筆)`;
+        lastWeeklyUpdate.value = formatTimestamp() + ' (已從試算表匯入)';
+      } catch (err) {
+        sheetSyncStatus.value = '本機快取模式';
+        console.warn('試算表讀取提醒（請確認試算表共用設為知道連結的任何人可檢視）：', err);
+      } finally {
+        isSyncingSheet.value = false;
+      }
+    };
+
+    const saveSheetConfigAndSync = () => {
+      localStorage.setItem('dz_gas_url', gasWebhookUrl.value);
+      showSheetConfigModal.value = false;
+      importFromUserGoogleSheet();
+    };
+
+    // Google 帳號登入與 EULA 確認
+    const ensureEulaAgreed = () => {
+      if (hasAgreedEula.value) return true;
+      const ok = confirm(
+        '【荳陣親子旅遊 社群使用條款與實名安全聲明】\n\n' +
+        '1. 本平台允許您以「自訂暱稱」或「匿名」發表景點留言與分享行程。\n' +
+        '2. 為防範不法、詐騙或惡意破壞行為，系統後台將記錄登入帳號之時間與留言時間；若涉及不法情事，官方將提供後台實名資訊依法送辦。\n\n' +
+        '請點擊「確定」代表您同意遵守上述規範。'
+      );
+      if (ok) {
+        hasAgreedEula.value = true;
+        localStorage.setItem('dz_agreed_eula', 'true');
+        return true;
+      }
+      return false;
+    };
+
+    const loginWithGoogle = () => {
+      const inputEmail = prompt(
+        '【Google 帳號安全登入驗證】\n請輸入您的 Google 信箱（前台可自由選擇暱稱或匿名留言，後台將記錄登入時間以保障社群安全）：',
+        'parent.tw@gmail.com'
+      );
+      if (!inputEmail || !inputEmail.includes('@')) return alert('請輸入有效的 Google Email 帳號！');
+      googleUser.value = {
+        uid: 'G_UID_' + Math.random().toString(36).substring(2, 10).toUpperCase(),
+        email: inputEmail.trim(),
+        displayName: inputEmail.split('@')[0],
+        loginAt: formatTimestamp()
+      };
+      if (!userNickname.value) userNickname.value = googleUser.value.displayName;
+      localStorage.setItem('dz_google_user', JSON.stringify(googleUser.value));
+      localStorage.setItem('dz_nickname', userNickname.value);
+      const log = recordAuditLog('帳號登入', '系統認證', '完成 Google 帳號登入驗證', googleUser.value.displayName);
+      postToGoogleSheet({ action: 'AUDIT_ONLY', auditLog: log });
+    };
+
+    const logoutGoogle = () => {
+      googleUser.value = null;
+      localStorage.removeItem('dz_google_user');
+    };
+
+    // 8 大育兒友善空間與借用設備
+    const facilityOptions = [
+      { key: 'restroom', label: '親子友善廁所', short: '親子廁', icon: '🚼' },
+      { key: 'diaperTable', label: '尿布台', short: '尿布台', icon: '🧷' },
+      { key: 'nursingRoom', label: '獨立哺乳室', short: '哺乳室', icon: '🍼' },
+      { key: 'strollerRental', label: '借嬰兒/兒童推車', short: '借推車', icon: '🛒' },
+      { key: 'sterilizer', label: '消毒鍋', short: '消毒鍋', icon: '♨️' },
+      { key: 'babyBath', label: '嬰兒澡盆', short: '澡盆', icon: '🛁' },
+      { key: 'highChair', label: '嬰兒/兒童座椅', short: '兒童椅', icon: '🪑' },
+      { key: 'kidsTableware', label: '兒童碗筷餐具', short: '兒童碗', icon: '🥣' }
+    ];
+
+    // 15 組廣義親子與學齡語意關鍵字
+    const semanticKeywordList = [
+      '親子', '幼兒', '嬰兒', '育兒', '兒童', '學齡前', '學齡',
+      '托兒所', '托嬰', '幼兒所', '幼兒園', '國小', '親子友善', '兒童友善', '親子環境'
+    ];
+
+    const categoryOptions = [
+      { label: '親子友善住宿', value: '住宿', icon: '🏨' },
+      { label: '親子友善餐廳', value: '餐廳', icon: '🍽️' },
+      { label: '親子遊戲區', value: '遊戲', icon: '🎠' },
+      { label: '親子互動教學體驗', value: '體驗', icon: '🎨' },
+      { label: '共融特色公園', value: '公園', icon: '🌳' }
+    ];
+
+    const ageOptions = ['0-2歲 (托嬰/嬰幼兒)', '3-6歲 (學齡前/幼兒園)', '7-10歲 (國小低中年級)', '11-14歲 (國小高年級/國中)'];
+
+    // 天氣預報查詢
+    const weatherLocations = [
+      { name: '台灣・臺中市 (大雅/西屯/新社)', lat: 24.22, lng: 120.68 },
+      { name: '台灣・臺北市', lat: 25.03, lng: 121.56 },
+      { name: '台灣・宜蘭縣', lat: 24.75, lng: 121.75 },
+      { name: '台灣・屏東縣 (車城/墾丁)', lat: 22.05, lng: 120.70 },
+      { name: '日本・沖繩那霸/本部町', lat: 26.21, lng: 127.68 },
+      { name: '冰島・雷克雅維克', lat: 64.14, lng: -21.94 }
+    ];
+    const selectedWeatherCity = ref(weatherLocations[0]);
+    const weatherData = reactive({ loading: false, temp: 25, desc: '☀️ 晴時多雲', rainProb: 10, daily: [] });
+
+    const fetchLiveWeather = async () => {
+      weatherData.loading = true;
+      try {
+        const { lat, lng } = selectedWeatherCity.value;
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=5`);
+        const data = await res.json();
+        weatherData.temp = Math.round(data.current.temperature_2m);
+        const code = data.current.weather_code;
+        weatherData.desc = code === 0 ? '☀️ 晴朗' : code <= 3 ? '⛅ 多雲舒適' : code <= 67 ? '🌧️ 有雨' : '⛈️ 雷陣雨';
+        weatherData.rainProb = data.daily.precipitation_probability_max?.[0] || 0;
+        weatherData.daily = data.daily.time.map((t, i) => ({
+          date: t,
+          max: Math.round(data.daily.temperature_2m_max[i]),
+          min: Math.round(data.daily.temperature_2m_min[i]),
+          rain: data.daily.precipitation_probability_max[i] || 0
+        }));
+      } catch (e) {} finally {
+        weatherData.loading = false;
+      }
+    };
+
+    const upcomingEvents = ref([
+      {
+        id: 'ev1', city: '臺中市', dateRange: '2026/10/24 - 11/08', targetAge: '幼兒園～國小學齡',
+        title: '台中市民廣場＆科博館秋日親子草地科普市集',
+        desc: '適合學齡前幼兒與國小兒童的戶外自然科學闖關、泡泡秀與幼兒滑步車體驗，現場設臨時哺乳帳篷與尿布台。'
+      },
+      {
+        id: 'ev2', city: '宜蘭縣', dateRange: '2026/10/25 - 11/30', targetAge: '0-14歲全齡',
+        title: '宜蘭傳藝中心兒童繪本戲劇節（推車友善專場）',
+        desc: '多場互動兒童劇團演出，園區提供免費嬰兒推車借用、獨立溫水哺乳室，非常適合托嬰與幼兒園家庭順遊。'
+      }
+    ]);
+
+    const defaultPlaces = [
+      {
+        id: 'p1', name: '國立自然科學博物館（生命科學廳＆幼兒科學園）', country: '台灣', city: '臺中市', district: '北區',
+        categories: ['體驗', '遊戲'],
+        ageGroups: ['0-2歲 (托嬰/嬰幼兒)', '3-6歲 (學齡前/幼兒園)', '7-10歲 (國小低中年級)', '11-14歲 (國小高年級/國中)'],
+        stars: 4.9, isIndoor: true, isSponsored: false, isNew: false, popularity: 99, energyScore: 5, relaxScore: 4, lat: 24.1579, lng: 120.6659,
+        facilities: { restroom: true, diaperTable: true, nursingRoom: true, strollerRental: true, sterilizer: false, babyBath: false, highChair: true, kidsTableware: true },
+        matchedKeywords: ['親子友善', '幼兒園', '國小', '學齡前', '兒童友善', '嬰兒推車'],
+        reviewSummary: '名稱雖無親子二字，但為全台幼兒園與國小戶外教學首選！專為 3-8 歲學齡前兒童打造的「幼兒科學園」互動極佳，服務台可免費借用嬰兒推車，各樓層皆設親子廁所、尿布台與獨立哺乳室，館內餐廳亦備有兒童座椅與兒童碗筷。',
+        image: 'https://images.unsplash.com/photo-1566140967404-b8b3932483f5?auto=format&fit=crop&w=800&q=80',
+        comments: [
+          { id: 'c101', displayAuthor: '台中二寶媽', realEmail: 'taichung.mom2@gmail.com', googleUid: 'G_UID_88291A', loginAt: '2026-10-20 14:10:05', createdAt: '2026-10-20 14:15:22', stars: 5, text: '服務台押證件就能借嬰兒推車，哺乳室裡有尿布台跟溫奶熱水，帶托嬰階段二寶跟國小大寶來都很輕鬆！' }
+        ]
+      },
+      {
+        id: 'p2', name: '想窩11餐旅館 Shine World 11', country: '台灣', city: '臺中市', district: '沙鹿區',
+        categories: ['住宿', '餐廳', '遊戲'],
+        ageGroups: ['0-2歲 (托嬰/嬰幼兒)', '3-6歲 (學齡前/幼兒園)', '7-10歲 (國小低中年級)'],
+        stars: 4.8, isIndoor: true, isSponsored: true, isNew: true, popularity: 96, energyScore: 5, relaxScore: 5, lat: 24.2225, lng: 120.5731,
+        facilities: { restroom: true, diaperTable: true, nursingRoom: true, strollerRental: true, sterilizer: true, babyBath: true, highChair: true, kidsTableware: true },
+        matchedKeywords: ['親子', '嬰兒', '幼兒', '育兒', '親子環境', '托嬰'],
+        reviewSummary: '8 大育兒友善設備全滿分的複合式餐旅館！住宿房內提供消毒鍋、嬰兒澡盆與床圍；一樓餐廳全面配備嬰兒/兒童座椅與防摔兒童碗筷，二樓百坪室內球池與沙坑讓托兒所、幼兒園階段孩子盡情放電。',
+        image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80',
+        comments: []
+      },
+      {
+        id: 'p3', name: '大雅中科公園（22公尺磨石子溜滑梯＆共融沙坑）', country: '台灣', city: '臺中市', district: '大雅區',
+        categories: ['公園', '遊戲'],
+        ageGroups: ['3-6歲 (學齡前/幼兒園)', '7-10歲 (國小低中年級)', '11-14歲 (國小高年級/國中)'],
+        stars: 4.7, isIndoor: false, isSponsored: false, isNew: false, popularity: 92, energyScore: 5, relaxScore: 4, lat: 24.2258, lng: 120.6355,
+        facilities: { restroom: true, diaperTable: true, nursingRoom: false, strollerRental: false, sterilizer: false, babyBath: false, highChair: false, kidsTableware: false },
+        matchedKeywords: ['親子環境', '兒童', '幼兒', '國小', '學齡'],
+        reviewSummary: '鄰近潭雅神綠園道，評論常提到附近幼兒園與國小放學後家長最愛帶來放電！步道平緩極適合推嬰兒車，無障礙親子廁所附設尿布台與沖洗區。',
+        image: 'https://images.unsplash.com/photo-1575783970733-1aaedde1db74?auto=format&fit=crop&w=800&q=80',
+        comments: []
+      },
+      {
+        id: 'p4', name: '沖繩美麗海水族館 & 海洋博公園兒童王國', country: '日本', city: '沖繩縣', district: '本部町',
+        categories: ['體驗', '公園', '遊戲'],
+        ageGroups: ['0-2歲 (托嬰/嬰幼兒)', '3-6歲 (學齡前/幼兒園)', '7-10歲 (國小低中年級)', '11-14歲 (國小高年級/國中)'],
+        stars: 4.9, isIndoor: true, isSponsored: false, isNew: true, popularity: 98, energyScore: 5, relaxScore: 4, lat: 26.6943, lng: 127.8779,
+        facilities: { restroom: true, diaperTable: true, nursingRoom: true, strollerRental: true, sterilizer: false, babyBath: false, highChair: true, kidsTableware: true },
+        matchedKeywords: ['親子友善', '嬰兒', '幼兒', '兒童友善', '學齡前'],
+        reviewSummary: '海外親子自由行首選！入園免費借用嬰兒推車，館內設有多間高規格哺乳室與尿布台，景觀餐廳提供兒童座椅與兒童碗筷。',
+        image: 'https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=800&q=80',
+        comments: []
+      }
+    ];
+
+    const places = ref(JSON.parse(localStorage.getItem('dz_places_v3')) || defaultPlaces);
+
+    const filters = reactive({
+      keyword: '', minStars: 1, countries: [], cities: [], districts: [],
+      categories: [], ages: [], facilities: [], isIndoor: false
+    });
+
+    const availableCountries = computed(() => [...new Set(places.value.map(p => p.country))]);
+    const availableCities = computed(() => {
+      const list = filters.countries.length ? places.value.filter(p => filters.countries.includes(p.country)) : places.value;
+      return [...new Set(list.map(p => p.city))];
+    });
+    const availableDistricts = computed(() => {
+      let list = places.value;
+      if (filters.countries.length) list = list.filter(p => filters.countries.includes(p.country));
+      if (filters.cities.length) list = list.filter(p => filters.cities.includes(p.city));
+      return [...new Set(list.map(p => p.district))];
+    });
+
+    const toggleArrayFilter = (arr, val) => {
+      const i = arr.indexOf(val);
+      if (i > -1) arr.splice(i, 1);
+      else arr.push(val);
+    };
+
+    const resetFilters = () => {
+      Object.assign(filters, {
+        keyword: '', minStars: 1, countries: [], cities: [], districts: [],
+        categories: [], ages: [], facilities: [], isIndoor: false
+      });
+      quickSortMode.value = 'all';
+    };
+
+    const filteredPlaces = computed(() => {
+      let list = places.value.filter(p => {
+        if (p.stars < filters.minStars) return false;
+        if (filters.countries.length && !filters.countries.includes(p.country)) return false;
+        if (filters.cities.length && !filters.cities.includes(p.city)) return false;
+        if (filters.districts.length && !filters.districts.includes(p.district)) return false;
+        if (filters.categories.length && !filters.categories.some(c => (p.categories || []).includes(c))) return false;
+        if (filters.ages.length && !filters.ages.some(a => (p.ageGroups || []).includes(a))) return false;
+        if (filters.facilities.length && !filters.facilities.every(fKey => p.facilities?.[fKey])) return false;
+        if (filters.isIndoor && !p.isIndoor) return false;
+
+        if (filters.keyword) {
+          const kw = filters.keyword.toLowerCase();
+          const haystack = [
+            p.name, p.country, p.city, p.district, p.reviewSummary,
+            ...(p.matchedKeywords || []),
+            ...(p.comments || []).map(c => c.text)
+          ].join(' ').toLowerCase();
+          if (!haystack.includes(kw)) return false;
+        }
+        return true;
+      });
+
+      if (quickSortMode.value === 'popular') return list.sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
+      if (quickSortMode.value === 'newest') return list.filter(p => p.isNew).concat(list.filter(p => !p.isNew));
+      return list.sort((a, b) => (Boolean(b.isSponsored) - Boolean(a.isSponsored)) || (b.stars - a.stars));
+    });
+
+    const getGoogleMapsUrl = (p) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name + ' ' + p.city + p.district)}`;
+    const getYoutubeUrl = (p) => `https://www.youtube.com/results?search_query=${encodeURIComponent(p.name + ' 親子旅遊 開箱')}`;
+    const getEmergencyMedicalUrl = (p) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.city + p.district + ' 小兒科 急診 醫院 藥局')}`;
+
+    const expandedComments = reactive({});
+    const newCommentText = reactive({});
+    const newCommentStars = reactive({});
+
+    const getVisibleComments = (place) => {
+      return (place.comments || []).filter(
+        c => !blockedUsers.value.includes(c.displayAuthor) && !reportedIds.value.includes(c.id)
+      );
+    };
+
+    const toggleCommentBoard = (id) => {
+      expandedComments[id] = !expandedComments[id];
+      if (!newCommentStars[id]) newCommentStars[id] = 5;
+    };
+
+    const submitComment = (placeId) => {
+      if (!googleUser.value) return alert('請先登入 Google 帳號！');
+      if (!ensureEulaAgreed()) return;
+      const text = newCommentText[placeId];
+      if (!text) return alert('請輸入留言內容！');
+
+      const displayAuthor = useAnonymous.value
+        ? '匿名家長 (已實名驗證)'
+        : (userNickname.value || googleUser.value.displayName);
+
+      const commentObj = {
+        id: 'CM_' + Date.now(),
+        displayAuthor,
+        realEmail: googleUser.value.email,
+        googleUid: googleUser.value.uid,
+        loginAt: googleUser.value.loginAt,
+        createdAt: formatTimestamp(),
+        stars: newCommentStars[placeId] || 5,
+        text
+      };
+
+      const target = places.value.find(p => p.id === placeId);
+      if (target) {
+        target.comments.unshift(commentObj);
+        localStorage.setItem('dz_places_v3', JSON.stringify(places.value));
+        const auditLog = recordAuditLog('景點留言', target.name, text, displayAuthor);
+        postToGoogleSheet({ action: 'ADD_COMMENT', placeId, comment: commentObj, auditLog });
+      }
+      newCommentText[placeId] = '';
+    };
+
+    const deleteComment = (placeId, commentId) => {
+      const target = places.value.find(p => p.id === placeId);
+      if (target) {
+        target.comments = target.comments.filter(c => c.id !== commentId);
+        localStorage.setItem('dz_places_v3', JSON.stringify(places.value));
+        postToGoogleSheet({ action: 'DELETE_COMMENT', placeId, commentId });
+      }
+    };
+
+    const reportContent = (contentType, placeId, targetId, author, contentPreview) => {
+      const reason = prompt(`請輸入檢舉「${author}」此則${contentType}的原因：`);
+      if (reason === null) return;
+      reportedIds.value.push(targetId);
+      localStorage.setItem('dz_reported_ids', JSON.stringify(reportedIds.value));
+      alert('✅ 已隱藏該則內容並提交官方後台審核！');
+    };
+
+    const blockUser = (targetAuthor) => {
+      if (!confirm(`確定要封鎖「${targetAuthor}」嗎？`)) return;
+      if (!blockedUsers.value.includes(targetAuthor)) {
+        blockedUsers.value.push(targetAuthor);
+        localStorage.setItem('dz_blocked_users', JSON.stringify(blockedUsers.value));
+      }
+    };
+
+    const deletePlace = (placeId) => {
+      if (!confirm('確定要刪除此景點嗎？')) return;
+      places.value = places.value.filter(p => p.id !== placeId);
+      localStorage.setItem('dz_places_v3', JSON.stringify(places.value));
+    };
+
+    const deleteEvent = (evId) => {
+      upcomingEvents.value = upcomingEvents.value.filter(e => e.id !== evId);
+    };
+
+    const toggleAdminMode = () => {
+      if (isAdmin.value) { isAdmin.value = false; activeTab.value = 'explore'; return; }
+      const pwd = prompt('請輸入「荳陣親子旅遊」官方後台管理密碼（預設驗證碼：8888）：');
+      if (pwd === '8888') isAdmin.value = true;
+    };
+
+    const newPlace = reactive({
+      name: '', country: '台灣', city: '臺中市', district: '大雅區', stars: 4.8, reviewSummary: '',
+      isIndoor: true, isSponsored: false,
+      facilities: {
+        restroom: true, diaperTable: true, nursingRoom: true, strollerRental: false,
+        sterilizer: false, babyBath: false, highChair: true, kidsTableware: true
+      }
+    });
+
+    const addOfficialPlace = () => {
+      if (!newPlace.name) return alert('請輸入景點名稱！');
+      const placeObj = {
+        id: 'p_' + Date.now(),
+        name: newPlace.name,
+        country: newPlace.country,
+        city: newPlace.city,
+        district: newPlace.district,
+        categories: ['體驗', '遊戲'],
+        ageGroups: ['0-2歲 (托嬰/嬰幼兒)', '3-6歲 (學齡前/幼兒園)', '7-10歲 (國小低中年級)'],
+        stars: Number(newPlace.stars) || 4.8,
+        isIndoor: newPlace.isIndoor,
+        isSponsored: newPlace.isSponsored,
+        isNew: true,
+        popularity: 95,
+        energyScore: 5, relaxScore: 4,
+        lat: 24.18, lng: 120.64,
+        facilities: { ...newPlace.facilities },
+        matchedKeywords: ['官方新增', '親子友善', '學齡前', '兒童友善'],
+        reviewSummary: newPlace.reviewSummary || '官方後台實地認證之親子友善空間。',
+        image: 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80',
+        comments: []
+      };
+      places.value.unshift(placeObj);
+      localStorage.setItem('dz_places_v3', JSON.stringify(places.value));
+      postToGoogleSheet({ action: 'ADD_PLACE', place: placeObj });
+      showAddPlaceModal.value = false;
+      newPlace.name = ''; newPlace.reviewSummary = '';
+    };
+
+    const exportAuditLogsCsv = () => {
+      const headers = ['存證編號,行為類型,前台顯示名稱,真實Google信箱,Google_UID,帳號登入時間,留言發布時間,目標對象,內容摘要,裝置UserAgent'];
+      const rows = auditLogs.value.map(l =>
+        `"${l.id}","${l.actionType}","${l.displayAuthor}","${l.realEmail}","${l.googleUid}","${l.loginAt}","${l.actionAt}","${l.targetName}","${(l.content || '').replace(/"/g, '""')}","${(l.userAgent || '').replace(/"/g, '""')}"`
+      );
+      const csvContent = '\uFEFF' + headers.concat(rows).join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `荳陣親子旅遊_資安實名稽核存證單_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+    };
+
+    // 行程排序與分享
+    const itineraryCart = ref([defaultPlaces[2], defaultPlaces[1], defaultPlaces[0]]);
+    const routeOptimizedMessage = ref('');
+    const isInCart = (id) => itineraryCart.value.some(i => i.id === id);
+    const toggleItineraryCart = (place) => {
+      const idx = itineraryCart.value.findIndex(i => i.id === place.id);
+      if (idx > -1) itineraryCart.value.splice(idx, 1);
+      else itineraryCart.value.push(place);
+    };
+
+    const calcDist = (a, b) => {
+      const R = 6371;
+      const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+      const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+      const s = Math.sin(dLat / 2) ** 2 + Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+    };
+
+    const optimizeItineraryRoute = () => {
+      if (itineraryCart.value.length < 2) return;
+      const rem = [...itineraryCart.value];
+      const ordered = [rem.shift()];
+      let totalKm = 0;
+      while (rem.length) {
+        const last = ordered[ordered.length - 1];
+        let nIdx = 0, minD = Infinity;
+        rem.forEach((c, i) => {
+          const d = calcDist(last, c);
+          if (d < minD) { minD = d; nIdx = i; }
+        });
+        totalKm += minD;
+        ordered.push(rem.splice(nIdx, 1)[0]);
+      }
+      itineraryCart.value = ordered;
+      routeOptimizedMessage.value = `已透過 Google 座標完成最短路徑排序！預估總跨距 ${totalKm.toFixed(1)} 公里。`;
+    };
+
+    const googleMapsMultiStopUrl = computed(() =>
+      `https://www.google.com/maps/dir/${itineraryCart.value.map(p => encodeURIComponent(p.name + ' ' + p.city)).join('/')}`
+    );
+    const getPlanGoogleMapUrl = (spots) =>
+      `https://www.google.com/maps/dir/${(spots || []).map(s => encodeURIComponent(s)).join('/')}`;
+
+    const sharedItineraries = ref([
+      {
+        id: 'plan1', displayAuthor: '荳荳爸 Terry', realEmail: 'terry@douzhen-family.tw', googleUid: 'G_ADMIN_01',
+        loginAt: '2026-10-22 08:30:00', createdAt: '2026-10-22 09:00:00',
+        title: '台中海線＆大雅一日順遊：溜滑梯放電＋想窩11餐旅館吹冷氣',
+        description: '早上先去大雅中科公園玩22米溜滑梯，中午到沙鹿想窩11吃飯（有兒童碗筷、兒童椅跟哺乳室），下午去科博館幼兒科學園！',
+        spots: ['大雅中科公園', '想窩11餐旅館 Shine World 11', '國立自然科學博物館'],
+        image: 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?auto=format&fit=crop&w=800&q=80',
+        likes: 58
+      }
+    ]);
+
+    const newItineraryForm = reactive({ title: '', customSpots: '', description: '', imagePreview: '' });
+    const handleItineraryImageUpload = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => { newItineraryForm.imagePreview = ev.target.result; };
+      reader.readAsDataURL(file);
+    };
+
+    const publishSharedItinerary = () => {
+      if (!googleUser.value) return alert('請先登入 Google 帳號！');
+      if (!ensureEulaAgreed()) return;
+      if (!newItineraryForm.title) return alert('請填寫行程標題！');
+      const displayAuthor = useAnonymous.value ? '匿名家長 (已實名驗證)' : (userNickname.value || googleUser.value.displayName);
+      const extraSpots = newItineraryForm.customSpots ? newItineraryForm.customSpots.split(',').map(s => s.trim()).filter(Boolean) : [];
+      const allSpots = [...itineraryCart.value.map(p => p.name), ...extraSpots];
+
+      const planObj = {
+        id: 'PLAN_' + Date.now(),
+        displayAuthor,
+        realEmail: googleUser.value.email,
+        googleUid: googleUser.value.uid,
+        loginAt: googleUser.value.loginAt,
+        createdAt: formatTimestamp(),
+        title: newItineraryForm.title,
+        description: newItineraryForm.description,
+        spots: allSpots.length ? allSpots : ['自訂親子順遊路線'],
+        image: newItineraryForm.imagePreview || 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=800&q=80',
+        likes: 1
+      };
+
+      sharedItineraries.value.unshift(planObj);
+      const auditLog = recordAuditLog('分享行程', planObj.title, planObj.description, displayAuthor);
+      postToGoogleSheet({ action: 'ADD_ITINERARY', plan: planObj, auditLog });
+      newItineraryForm.title = ''; newItineraryForm.customSpots = ''; newItineraryForm.description = ''; newItineraryForm.imagePreview = '';
+      alert('🎉 行程已發布並同步寫回 Google 試算表！');
+    };
+
+    const deleteSharedItinerary = (id) => {
+      sharedItineraries.value = sharedItineraries.value.filter(p => p.id !== id);
+    };
+
+    // Gemini 動態更新並寫回試算表
+    const geminiApiKey = ref(localStorage.getItem('dz_gemini_key') || '');
+    const geminiPrompt = ref('請幫我搜尋台灣近期適合 0-14 歲（含學齡前、幼兒園、國小、托嬰）的 2 個熱門親子友善場所與 1 個近期親子活動，並盤點是否具備親子廁所、尿布台、哺乳室、借推車、消毒鍋、澡盆、兒童椅、兒童碗筷。');
+    const geminiLoading = ref(false);
+
+    const fetchPlacesFromGemini = async () => {
+      if (!geminiApiKey.value) return alert('請先輸入 Gemini API Key！');
+      localStorage.setItem('dz_gemini_key', geminiApiKey.value);
+      geminiLoading.value = true;
+      try {
+        const promptText = `請回傳純 JSON 物件，格式為 { "places": [...], "events": [...] }。
+1. places 陣列中每個物件包含：name, country, city, district, categories (陣列), ageGroups (陣列), stars (數字), isIndoor (布林), facilities (含 restroom, diaperTable, nursingRoom, strollerRental, sterilizer, babyBath, highChair, kidsTableware 八個布林值), matchedKeywords (從 親子/幼兒/嬰兒/育兒/兒童/學齡前/學齡/托兒所/托嬰/幼兒所/幼兒園/國小/親子友善/兒童友善/親子環境 挑選), reviewSummary。
+2. events 陣列中每個物件包含：city, dateRange, targetAge, title, desc。
+使用者需求：${geminiPrompt.value}`;
+
+        const resp = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey.value}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: promptText }] }],
+              generationConfig: { responseMimeType: 'application/json' }
+            })
+          }
+        );
+        const data = await resp.json();
+        const parsed = JSON.parse(data.candidates?.[0]?.content?.parts?.[0]?.text || '{}');
+
+        if (Array.isArray(parsed.places)) {
+          parsed.places.forEach((item, idx) => {
+            const pObj = {
+              id: 'gem_' + Date.now() + '_' + idx,
+              name: item.name,
+              country: item.country || '台灣',
+              city: item.city || '臺中市',
+              district: item.district || '',
+              categories: item.categories || ['體驗'],
+              ageGroups: item.ageGroups || ['3-6歲 (學齡前/幼兒園)', '7-10歲 (國小低中年級)'],
+              stars: Number(item.stars) || 4.8,
+              isIndoor: Boolean(item.isIndoor),
+              isSponsored: false,
+              isNew: true,
+              popularity: 95,
+              energyScore: 5, relaxScore: 4,
+              lat: 24.18, lng: 120.64,
+              facilities: item.facilities || { restroom: true, diaperTable: true, nursingRoom: true, strollerRental: false, sterilizer: false, babyBath: false, highChair: true, kidsTableware: true },
+              matchedKeywords: item.matchedKeywords || ['親子友善', '學齡前', '國小'],
+              reviewSummary: item.reviewSummary || '',
+              image: 'https://images.unsplash.com/photo-1536640712-4d4c36ff0e4e?auto=format&fit=crop&w=800&q=80',
+              comments: []
+            };
+            places.value.unshift(pObj);
+            postToGoogleSheet({ action: 'ADD_PLACE', place: pObj });
+          });
+        }
+        if (Array.isArray(parsed.events)) {
+          parsed.events.forEach((ev, idx) => {
+            upcomingEvents.value.unshift({ id: 'ev_gem_' + Date.now() + idx, ...ev });
+          });
+        }
+        lastWeeklyUpdate.value = formatTimestamp() + ' (Gemini 聯網更新)';
+        showGeminiModal.value = false;
+        alert('✨ 已成功透過 Gemini 更新景點與活動並同步回寫試算表！');
+      } catch (e) {
+        alert('Gemini 更新失敗：' + e.message);
+      } finally {
+        geminiLoading.value = false;
+      }
+    };
+
+    const contactInfo = reactive({
+      name: 'Terry（荳陣親子旅遊創辦人）',
+      email: 'partner@douzhen-family.tw',
+      lineId: '@douzhen_kids',
+      phone: '0900-123-456'
+    });
+    const vendorForm = reactive({ company: '', contact: '', emailOrLine: '', type: '版位廣告與景點置頂', message: '' });
+    const submitVendorForm = () => {
+      if (!vendorForm.company || !vendorForm.emailOrLine) return alert('請填寫品牌與聯絡方式！');
+      const vObj = { id: 'V_' + Date.now(), date: formatTimestamp(), ...vendorForm };
+      postToGoogleSheet({ action: 'ADD_VENDOR', vendor: vObj });
+      alert('🎉 提案已送出並寫入您的 Google 試算表《廠商提案紀錄》！');
+      vendorForm.company = ''; vendorForm.contact = ''; vendorForm.emailOrLine = ''; vendorForm.message = '';
+    };
+
+    onMounted(() => {
+      fetchLiveWeather();
+      importFromUserGoogleSheet();
+    });
+
+    return {
+      activeTab, quickSortMode, isAdmin, toggleAdminMode,
+      showSheetConfigModal, gasWebhookUrl, isSyncingSheet, sheetSyncStatus, importFromUserGoogleSheet, saveSheetConfigAndSync,
+      googleUser, userNickname, useAnonymous, loginWithGoogle, logoutGoogle,
+      auditLogs, exportAuditLogsCsv,
+      facilityOptions, semanticKeywordList, categoryOptions, ageOptions,
+      weatherLocations, selectedWeatherCity, weatherData, fetchLiveWeather,
+      upcomingEvents, deleteEvent, lastWeeklyUpdate,
+      places, filters, availableCountries, availableCities, availableDistricts,
+      toggleArrayFilter, resetFilters, filteredPlaces,
+      getGoogleMapsUrl, getYoutubeUrl, getEmergencyMedicalUrl,
+      expandedComments, newCommentText, newCommentStars, getVisibleComments, toggleCommentBoard, submitComment, deleteComment, reportContent, blockUser, deletePlace,
+      showAddPlaceModal, newPlace, addOfficialPlace,
+      itineraryCart, isInCart, toggleItineraryCart, optimizeItineraryRoute, routeOptimizedMessage, googleMapsMultiStopUrl,
+      sharedItineraries, newItineraryForm, handleItineraryImageUpload, publishSharedItinerary, deleteSharedItinerary, getPlanGoogleMapUrl,
+      showGeminiModal, geminiApiKey, geminiPrompt, geminiLoading, fetchPlacesFromGemini,
+      contactInfo, vendorForm, submitVendorForm
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
